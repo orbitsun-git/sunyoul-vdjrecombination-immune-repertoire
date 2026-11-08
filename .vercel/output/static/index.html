@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>면역 레퍼토리 프로파일링 시뮬레이터</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <style>
+    body { background-color: #0b0f19; color: #f3f4f6; font-family: sans-serif; }
+    .glass { background: rgba(17, 24, 39, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    canvas { border-radius: 0.5rem; }
+  </style>
+</head>
+<body class="p-6">
+  <div class="max-w-7xl mx-auto space-y-8">
+    
+    <!-- Header -->
+    <header class="glass p-6 rounded-2xl flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-bold text-cyan-400">면역 레퍼토리 프로파일링 시뮬레이터</h1>
+        <p class="text-sm text-gray-400">V(D)J Recombination & Immune Repertoire Profiling Interactive Web App</p>
+      </div>
+      <div class="text-right text-xs text-gray-500">
+        <p>Three.js 3D Engine Integrated</p>
+        <p>Chart.js Real-time Analytics</p>
+      </div>
+    </header>
+
+    <!-- 1. V(D)J Recombination Mechanics -->
+    <section class="glass p-6 rounded-2xl space-y-6">
+      <div class="flex justify-between items-center border-b border-gray-700 pb-2">
+        <h2 class="text-xl font-bold text-cyan-300">1. V(D)J 재조합 메커니즘 & 3D 분자 구조</h2>
+        <span class="text-xs bg-cyan-950 text-cyan-400 border border-cyan-700 px-3 py-1 rounded-full font-mono">12/23 RSS 규칙 적용</span>
+      </div>
+      
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Controls & Parameter Selection -->
+        <div class="space-y-4 bg-gray-900/40 p-4 rounded-xl border border-gray-800">
+          <h3 class="text-sm font-semibold text-gray-300">재조합 파라미터 설정</h3>
+          
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">분석 사슬 (Chain Selection)</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="btn-igh" onclick="setChain('IGH')" class="bg-cyan-600 text-white py-2 text-xs rounded-lg font-semibold transition">IgH 중쇄 (V-D-J)</button>
+              <button id="btn-tcr" onclick="setChain('TCR')" class="bg-gray-800 text-gray-300 py-2 text-xs rounded-lg font-semibold transition">TCR-β 사슬 (V-D-J)</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">V 절편</label>
+              <select id="select-v" class="w-full bg-gray-800 border border-gray-700 rounded p-1.5 text-xs text-cyan-300">
+                <option>IGHV1-2</option><option>IGHV3-7</option><option>IGHV4-34</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">D 절편</label>
+              <select id="select-d" class="w-full bg-gray-800 border border-gray-700 rounded p-1.5 text-xs text-cyan-300">
+                <option>IGHD1-1</option><option>IGHD2-8</option><option>IGHD3-22</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">J 절편</label>
+              <select id="select-j" class="w-full bg-gray-800 border border-gray-700 rounded p-1.5 text-xs text-cyan-300">
+                <option>IGHJ1</option><option>IGHJ4</option><option>IGHJ6</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="space-y-2 pt-2 border-t border-gray-800 text-xs">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="check-tdt" checked class="accent-cyan-500"> TdT 효소 활성 (무작위 N-수산화/N-삽입)
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="check-exo" checked class="accent-cyan-500"> Exonuclease 절단 (접합부 Nucleotide 삭제)
+            </label>
+          </div>
+
+          <div class="bg-rose-950/40 border border-rose-800/60 p-3 rounded-lg flex items-center justify-between">
+            <div>
+              <p class="text-xs font-bold text-rose-300">RAG 오작동 (Off-target Risk)</p>
+              <p class="text-[10px] text-gray-400">유사 RSS 오인 절단 시 염색체 전좌 t(8;14) 및 MYC 과발현 종양 발생 위험 모델링.</p>
+            </div>
+            <input type="checkbox" id="check-offtarget" onclick="toggleOffTarget()" class="w-4 h-4 accent-rose-500 cursor-pointer">
+          </div>
+
+          <button onclick="runRecombination()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white py-2.5 rounded-lg font-bold text-xs transition shadow-lg shadow-cyan-900/50">V(D)J 재조합 실행 & CDR3 생성</button>
+
+          <div class="bg-gray-950 p-3 rounded-lg space-y-1 text-xs font-mono border border-gray-800">
+            <div class="flex justify-between text-gray-400"><span>조합 결과:</span> <span id="res-segment" class="text-yellow-400">미실행</span></div>
+            <div class="flex justify-between text-gray-400"><span>CDR3 서열:</span> <span id="res-cdr3" class="text-cyan-400">-</span></div>
+            <div class="flex justify-between text-gray-400"><span>다양성 지수:</span> <span id="res-div" class="text-emerald-400">-</span></div>
+          </div>
+        </div>
+
+        <!-- 3D Canvas Container -->
+        <div class="bg-gray-950 rounded-xl p-2 relative h-[420px] border border-gray-800 flex flex-col">
+          <div id="three-container" class="w-full flex-1"></div>
+          <span class="absolute top-4 left-4 text-xs bg-gray-900/80 px-2 py-1 rounded text-gray-400">3D DNA-RAG Complex (마우스 회전 가능)</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Mathematical Modeling & Dynamics -->
+    <section class="glass p-6 rounded-2xl space-y-6">
+      <h2 class="text-xl font-bold text-cyan-300 border-b border-gray-700 pb-2">2. 면역 레퍼토리 수학적 모델링 & 동역학</h2>
+      
+      <!-- Sliders -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-900/40 p-4 rounded-xl border border-gray-800 text-xs">
+        <div>
+          <label class="block text-gray-400 mb-1">증식 증분율 (r): <span id="val-r" class="text-cyan-400">0.20</span></label>
+          <input type="range" id="slider-r" min="0.05" max="0.5" step="0.01" value="0.2" class="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+        </div>
+        <div>
+          <label class="block text-gray-400 mb-1">환경 수용량 (K): <span id="val-k" class="text-cyan-400">39,000</span></label>
+          <input type="range" id="slider-k" min="10000" max="100000" step="1000" value="39000" class="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+        </div>
+        <div>
+          <label class="block text-gray-400 mb-1">우세 클론 초기 비율 (C₀): <span id="val-c0" class="text-cyan-400">5.5%</span></label>
+          <input type="range" id="slider-c0" min="1" max="20" step="0.5" value="5.5" class="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-gray-950 p-4 rounded-xl border border-gray-800">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="text-sm font-semibold text-gray-300">① 섀넌 엔트로피 H (다양성)</h3>
+            <span id="stat-h" class="text-xs font-mono text-cyan-400">H = 4.33</span>
+          </div>
+          <div class="h-56"><canvas id="chart-shannon"></canvas></div>
+        </div>
+        <div class="bg-gray-950 p-4 rounded-xl border border-gray-800">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="text-sm font-semibold text-gray-300">② 최대 클론 빈도 Cmax (우세도)</h3>
+            <span id="stat-cmax" class="text-xs font-mono text-rose-400">Cmax = 48.2%</span>
+          </div>
+          <div class="h-56"><canvas id="chart-cmax"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Medical Application & NGS Analysis -->
+    <section class="glass p-6 rounded-2xl space-y-6">
+      <h2 class="text-xl font-bold text-cyan-300 border-b border-gray-700 pb-2">3. NGS 프로파일링 & 임상 응용 분석</h2>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- CDR3 Spectratyping -->
+        <div class="bg-gray-950 p-4 rounded-xl border border-gray-800 space-y-2">
+          <h3 class="text-sm font-semibold text-gray-300">CDR3 길이 분포 (Spectratyping)</h3>
+          <p class="text-xs text-gray-500">환자(Patient)와 정상 대조군(Healthy)의 CDR3 길이 및 CD4/CD8 분포 비교</p>
+          <div class="h-56"><canvas id="chart-cdr3"></canvas></div>
+        </div>
+
+        <!-- Single-cell vs Bulk -->
+        <div class="bg-gray-950 p-4 rounded-xl border border-gray-800 space-y-2">
+          <h3 class="text-sm font-semibold text-gray-300">Bulk vs Single-cell TCR-seq 이질성</h3>
+          <p class="text-xs text-gray-500">단일세포 수준에서 밝혀지는 특정 아세포군(Subpopulation)의 선택적 증식 분석</p>
+          <div class="h-56"><canvas id="chart-sc"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // --- 3D Three.js Setup ---
+    let scene, camera, renderer, controls;
+    let ragMesh, dnaLoop;
+    let isOffTarget = false;
+
+    function init3D() {
+      const container = document.getElementById('three-container');
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x030712);
+
+      camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+      camera.position.set(0, 0, 15);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(width, height);
+      container.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+
+      // Lights
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
+      const pointLight = new THREE.PointLight(0x00f0ff, 1);
+      pointLight.position.set(10, 10, 10);
+      scene.add(pointLight);
+
+      createDNAandRAG();
+
+      window.addEventListener('resize', onWindowResize);
+      animate3D();
+    }
+
+    function createDNAandRAG() {
+      if(ragMesh) scene.remove(ragMesh);
+      if(dnaLoop) scene.remove(dnaLoop);
+
+      const curve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-6, 0, 0),
+        new THREE.Vector3(-3, 2, 0),
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(3, -2, 0),
+        new THREE.Vector3(6, 0, 0)
+      ]);
+
+      const geometry = new THREE.TubeGeometry(curve, 64, 0.2, 8, false);
+      const material = new THREE.MeshStandardMaterial({ 
+        color: isOffTarget ? 0xe11d48 : 0x0284c7, 
+        roughness: 0.3 
+      });
+      dnaLoop = new THREE.Mesh(geometry, material);
+      scene.add(dnaLoop);
+
+      const ragGeo = new THREE.IcosahedronGeometry(1.2, 2);
+      const ragMat = new THREE.MeshStandardMaterial({ 
+        color: isOffTarget ? 0xf43f5e : 0x10b981, 
+        metalness: 0.2,
+        roughness: 0.1 
+      });
+      ragMesh = new THREE.Mesh(ragGeo, ragMat);
+      ragMesh.position.set(0, 0, 0);
+      scene.add(ragMesh);
+    }
+
+    function animate3D() {
+      requestAnimationFrame(animate3D);
+      if(ragMesh) {
+        ragMesh.rotation.x += 0.005;
+        ragMesh.rotation.y += 0.01;
+      }
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById('three-container');
+      if(!container) return;
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    // --- Interaction Handlers ---
+    function setChain(type) {
+      const btnIGH = document.getElementById('btn-igh');
+      const btnTCR = document.getElementById('btn-tcr');
+      const vSelect = document.getElementById('select-v');
+      const dSelect = document.getElementById('select-d');
+      const jSelect = document.getElementById('select-j');
+
+      if(type === 'IGH') {
+        btnIGH.className = "bg-cyan-600 text-white py-2 text-xs rounded-lg font-semibold transition";
+        btnTCR.className = "bg-gray-800 text-gray-300 py-2 text-xs rounded-lg font-semibold transition";
+        vSelect.innerHTML = "<option>IGHV1-2</option><option>IGHV3-7</option><option>IGHV4-34</option>";
+        dSelect.innerHTML = "<option>IGHD1-1</option><option>IGHD2-8</option><option>IGHD3-22</option>";
+        jSelect.innerHTML = "<option>IGHJ1</option><option>IGHJ4</option><option>IGHJ6</option>";
+      } else {
+        btnTCR.className = "bg-cyan-600 text-white py-2 text-xs rounded-lg font-semibold transition";
+        btnIGH.className = "bg-gray-800 text-gray-300 py-2 text-xs rounded-lg font-semibold transition";
+        vSelect.innerHTML = "<option>TRBV1</option><option>TRBV5-4</option><option>TRBV9</option>";
+        dSelect.innerHTML = "<option>TRBD1</option><option>TRBD2</option>";
+        jSelect.innerHTML = "<option>TRBJ1-1</option><option>TRBJ2-7</option>";
+      }
+    }
+
+    function toggleOffTarget() {
+      isOffTarget = document.getElementById('check-offtarget').checked;
+      createDNAandRAG();
+    }
+
+    function runRecombination() {
+      const v = document.getElementById('select-v').value;
+      const d = document.getElementById('select-d').value;
+      const j = document.getElementById('select-j').value;
+      
+      const useTdT = document.getElementById('check-tdt').checked;
+      const useExo = document.getElementById('check-exo').checked;
+
+      const randomN = useTdT ? Math.floor(Math.random() * 9) + 3 : 0;
+      const randomTrim = useExo ? Math.floor(Math.random() * 5) + 1 : 0;
+      
+      const aminoAcids = ['CASS', 'CASR', 'CAW', 'CAT', 'CSVR', 'CASG'];
+      const randomAA = aminoAcids[Math.floor(Math.random() * aminoAcids.length)] + Math.random().toString(36).substring(2, 6).toUpperCase();
+
+      document.getElementById('res-segment').innerText = `${v} - ${d} - ${j}`;
+      document.getElementById('res-cdr3').innerText = `${randomAA} (N:+${randomN}, Del:-${randomTrim})`;
+      document.getElementById('res-div').innerText = `Shannon H = ${(4.2 + Math.random() * 0.8).toFixed(2)}`;
+    }
+
+    // --- Charts Setup ---
+    let chartShannon, chartCmax, chartCDR3, chartSC;
+
+    function initCharts() {
+      const ctxH = document.getElementById('chart-shannon').getContext('2d');
+      chartShannon = new Chart(ctxH, {
+        type: 'line',
+        data: {
+          labels: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+          datasets: [{
+            label: 'Shannon Entropy (H)',
+            data: [5.25, 5.24, 5.20, 5.00, 4.75, 4.40, 4.00, 3.65, 3.40, 3.25, 3.15],
+            borderColor: '#06b6d4',
+            tension: 0.3,
+            fill: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af' } },
+            y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af' } }
+          }
+        }
+      });
+
+      const ctxC = document.getElementById('chart-cmax').getContext('2d');
+      chartCmax = new Chart(ctxC, {
+        type: 'line',
+        data: {
+          labels: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+          datasets: [{
+            label: 'Cmax (%)',
+            data: [1.2, 2.5, 5.0, 10.2, 18.5, 29.0, 38.5, 44.2, 47.5, 49.0, 50.0],
+            borderColor: '#f43f5e',
+            tension: 0.3,
+            fill: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af' } },
+            y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af' } }
+          }
+        }
+      });
+
+      const ctxCDR3 = document.getElementById('chart-cdr3').getContext('2d');
+      chartCDR3 = new Chart(ctxCDR3, {
+        type: 'bar',
+        data: {
+          labels: ['10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20'],
+          datasets: [
+            { label: 'Healthy', data: [20, 80, 200, 450, 600, 500, 300, 120, 40, 10, 2], backgroundColor: '#10b981' },
+            { label: 'Patient (Expanded)', data: [5, 20, 50, 120, 1200, 200, 80, 30, 10, 2, 0], backgroundColor: '#f43f5e' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#d1d5db' } } },
+          scales: {
+            x: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af' } },
+            y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af' } }
+          }
+        }
+      });
+
+      const ctxSC = document.getElementById('chart-sc').getContext('2d');
+      chartSC = new Chart(ctxSC, {
+        type: 'bubble',
+        data: {
+          datasets: [
+            { label: 'Cell Type A', data: [{x: 10, y: 20, r: 5}], backgroundColor: '#06b6d4' },
+            { label: 'Cell Type B (Expanded)', data: [{x: 25, y: 45, r: 18}], backgroundColor: '#f43f5e' },
+            { label: 'Cell Type C', data: [{x: 40, y: 15, r: 8}], backgroundColor: '#10b981' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#d1d5db' } } },
+          scales: {
+            x: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af' } },
+            y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af' } }
+          }
+        }
+      });
+    }
+
+    // --- Dynamic Slider Updates ---
+    function updateDynamics() {
+      const r = parseFloat(document.getElementById('slider-r').value);
+      const k = parseInt(document.getElementById('slider-k').value);
+      const c0 = parseFloat(document.getElementById('slider-c0').value);
+
+      document.getElementById('val-r').innerText = r.toFixed(2);
+      document.getElementById('val-k').innerText = k.toLocaleString();
+      document.getElementById('val-c0').innerText = c0.toFixed(1) + '%';
+
+      const newH = [];
+      const newCmax = [];
+      for(let t = 0; t <= 10; t++) {
+        let factor = Math.exp(r * t);
+        let c = (c0 * factor) / (1 + (c0 / 100) * (factor - 1));
+        c = Math.min(c, 85);
+        newCmax.push(c);
+        newH.push(Math.max(1.5, 5.25 - (c / 20)));
+      }
+
+      chartShannon.data.datasets[0].data = newH;
+      chartCmax.data.datasets[0].data = newCmax;
+      chartShannon.update();
+      chartCmax.update();
+
+      document.getElementById('stat-h').innerText = `H = ${newH[10].toFixed(2)}`;
+      document.getElementById('stat-cmax').innerText = `Cmax = ${newCmax[10].toFixed(1)}%`;
+    }
+
+    document.getElementById('slider-r').addEventListener('input', updateDynamics);
+    document.getElementById('slider-k').addEventListener('input', updateDynamics);
+    document.getElementById('slider-c0').addEventListener('input', updateDynamics);
+
+    window.onload = () => {
+      init3D();
+      initCharts();
+    };
+  </script>
+</body>
+</html>
